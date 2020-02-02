@@ -48,6 +48,19 @@ instance of ``Worker`` that it is safe to call ``Call()`` on, allowing
 recursion by having ``Run()`` return lists of additional data that
 ``Integrate()`` then passes to ``Call()``.
 
+In addition to the two interfaces above, aimed at allowing
+parallelization, there are also three interfaces concerned with
+serialization--having a bunch of disparate goroutines make calls that
+are not thread-safe without necessarily blocking themselves.  These
+are the ``Doer`` interface, which is to be implemented by client code;
+the ``Serializer`` interface, which allows those calls to be made; and
+``CallResult``, which is a "future"-style object allowing asynchronous
+retrieval of the results of a call made via ``Serializer``.  A user
+would call ``Serializer.Call()`` (or any of its sister methods) to
+have a ``Doer.Do()`` call made in the wrapped ``Doer`` in a
+synchronized manner; then calling ``Serializer.Wait()`` will result in
+a call to ``Doer.Finish()``, returning the result.
+
 Available Implementations
 -------------------------
 
@@ -74,13 +87,27 @@ create an instance of a parallel worker, pass the runner and the
 desired number of worker goroutines to the ``NewParallelWorker()``
 function.
 
+The parallelizer package also provides 2 implementation of the
+``Serializer`` interface.  The first is ``MockSerializer``, which is a
+simple struct that may be used to mock the serializer out for the
+purposes of unit testing.
+
+The second implementation of ``Serializer`` utilizes a manager
+goroutine that actually makes the calls to the ``Doer.Do()`` method.
+An instance of this serializer may be created by passing the
+application's ``Doer`` to the ``NewSerializer()`` function.
+
 Additional Utilities
 --------------------
 
 The parallelizer package also provides a ``MockRunner``, a struct
 which implements the ``Runner`` interface.  This may be useful for
 other applications that utilize ``Runner``, or which need to pass
-``Runner`` instances around internally.
+``Runner`` instances around internally.  Similarly, it provides the
+``MockDoer``, another struct which implements the ``Doer`` interface,
+and ``MockCallResult``, which implements the ``CallResult`` interface.
+This latter may be useful if the application being tested uses
+``Serializer.CallAsync()``.
 
 Testing
 =======

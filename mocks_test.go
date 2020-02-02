@@ -78,3 +78,166 @@ func TestMockWorkerWait(t *testing.T) {
 	assert.Equal(t, "result", result)
 	obj.AssertExpectations(t)
 }
+
+func TestMockDoerImplementsDoer(t *testing.T) {
+	assert.Implements(t, (*Doer)(nil), &MockDoer{})
+}
+
+func TestMockDoerDo(t *testing.T) {
+	obj := &MockDoer{}
+	obj.On("Do", "data").Return("result")
+
+	result := obj.Do("data")
+
+	assert.Equal(t, "result", result)
+	obj.AssertExpectations(t)
+}
+
+func TestMockDoerFinish(t *testing.T) {
+	obj := &MockDoer{}
+	obj.On("Finish").Return("result")
+
+	result := obj.Finish()
+
+	assert.Equal(t, "result", result)
+	obj.AssertExpectations(t)
+}
+
+func TestMockCallResultImplementsCallResult(t *testing.T) {
+	assert.Implements(t, (*CallResult)(nil), &MockCallResult{})
+}
+
+func TestMockCallResultWaitNil(t *testing.T) {
+	obj := &MockCallResult{}
+	obj.On("Wait").Return(nil)
+
+	result := obj.Wait()
+
+	assert.Nil(t, result)
+	obj.AssertExpectations(t)
+}
+
+func TestMockCallResultWaitNonNil(t *testing.T) {
+	expected := &Result{}
+	obj := &MockCallResult{}
+	obj.On("Wait").Return(expected)
+
+	result := obj.Wait()
+
+	assert.Same(t, expected, result)
+	obj.AssertExpectations(t)
+}
+
+func TestMockCallResultTryWaitNil(t *testing.T) {
+	obj := &MockCallResult{}
+	obj.On("TryWait").Return(nil, true)
+
+	result, ok := obj.TryWait()
+
+	assert.Nil(t, result)
+	assert.True(t, ok)
+	obj.AssertExpectations(t)
+}
+
+func TestMockCallResultTryWaitNonNil(t *testing.T) {
+	expected := &Result{}
+	obj := &MockCallResult{}
+	obj.On("TryWait").Return(expected, true)
+
+	result, ok := obj.TryWait()
+
+	assert.Same(t, expected, result)
+	assert.True(t, ok)
+	obj.AssertExpectations(t)
+}
+
+func TestMockCallResultChannelNil(t *testing.T) {
+	obj := &MockCallResult{}
+	obj.On("Channel").Return(nil)
+
+	result := obj.Channel()
+
+	assert.Nil(t, result)
+	obj.AssertExpectations(t)
+}
+
+func TestMockCallResultChannelNonNil(t *testing.T) {
+	expected := make(<-chan *Result)
+	obj := &MockCallResult{}
+	obj.On("Channel").Return(expected)
+
+	result := obj.Channel()
+
+	assert.Equal(t, expected, result)
+	obj.AssertExpectations(t)
+}
+
+func TestMockSerializerImplementsSerializer(t *testing.T) {
+	assert.Implements(t, (*Serializer)(nil), &MockSerializer{})
+}
+
+func TestMockSerializerCallNil(t *testing.T) {
+	obj := &MockSerializer{}
+	obj.On("Call", "data").Return(nil, assert.AnError)
+
+	result, err := obj.Call("data")
+
+	assert.Same(t, assert.AnError, err)
+	assert.Nil(t, result)
+	obj.AssertExpectations(t)
+}
+
+func TestMockSerializerCallNonNil(t *testing.T) {
+	expected := &Result{}
+	obj := &MockSerializer{}
+	obj.On("Call", "data").Return(expected, assert.AnError)
+
+	result, err := obj.Call("data")
+
+	assert.Same(t, assert.AnError, err)
+	assert.Same(t, expected, result)
+	obj.AssertExpectations(t)
+}
+
+func TestMockSerializerCallAsyncNil(t *testing.T) {
+	obj := &MockSerializer{}
+	obj.On("CallAsync", "data").Return(nil, assert.AnError)
+
+	result, err := obj.CallAsync("data")
+
+	assert.Same(t, assert.AnError, err)
+	assert.Nil(t, result)
+	obj.AssertExpectations(t)
+}
+
+func TestMockSerializerCallAsyncNonNil(t *testing.T) {
+	expected := &MockCallResult{}
+	obj := &MockSerializer{}
+	obj.On("CallAsync", "data").Return(expected, assert.AnError)
+
+	result, err := obj.CallAsync("data")
+
+	assert.Same(t, assert.AnError, err)
+	assert.Same(t, expected, result)
+	obj.AssertExpectations(t)
+}
+
+func TestMockSerializerCallOnly(t *testing.T) {
+	obj := &MockSerializer{}
+	obj.On("CallOnly", "data").Return(assert.AnError)
+
+	err := obj.CallOnly("data")
+
+	assert.Same(t, assert.AnError, err)
+	obj.AssertExpectations(t)
+}
+
+func TestMockSerializerWait(t *testing.T) {
+	obj := &MockSerializer{}
+	obj.On("Wait").Return("result")
+
+	result := obj.Wait()
+
+	assert.Equal(t, "result", result)
+	obj.AssertExpectations(t)
+}

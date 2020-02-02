@@ -38,6 +38,23 @@
 // value is cached in the Worker to be returned by future calls to
 // Worker.Wait.  The Worker.Call method may not be called again after
 // Worker.Wait has been called.
+//
+// The parallelizer package also provides a Doer interface, which is
+// for client applications to implement.  Instances of the Doer
+// interface may then be passed to the constructor function
+// NewSerializer, which constructs objects conforming to the
+// Serializer interface.  Data items may then be passed to the
+// Serializer objects to be executed via Doer.Do in a synchronous
+// manner without necessarily blocking the calling goroutine.
+//
+// A Doer implementation must provide a Doer.Do method, which will
+// actually process the data in a separate goroutine; each call will
+// be executed synchronously, so thread-safety in Doer.Do is not a
+// concern.  When the code using the wrapping Serializer is done, it
+// will call Serializer.Wait, which will call the Doer.Finish method
+// and return its result to the caller.  Note that none of the
+// Serializer.Call methods may be called again after calling
+// Serializer.Wait.
 package parallelizer
 
 // Runner is an interface describing the work to be done.  A Worker is
@@ -109,4 +126,75 @@ type Worker interface {
 	// straight to a stopped state, and no further Call calls may
 	// be made; no error will be returned in that case.
 	Wait() (interface{}, error)
+}
+
+// Doer is an interface describing an operation to be done in a
+// synchronized fashion, such as building a data structure.
+type Doer interface {
+	// Do does some operation.  It receives some data and returns
+	// some result.  A serializer wraps a Doer to ensure the
+	// operation is done in a single goroutine, synchronously.
+	Do(data interface{}) interface{}
+
+	// Finish is called when the manager goroutine of a Serializer
+	// implementation has been signaled to exit.  It may return a
+	// value, which becomes the return value from Serializer.Wait.
+	Finish() interface{}
+}
+
+// CallResult is an interface describing a "future" returned by
+// Serializer.CallAsync.  It allows the call to be made without
+// blocking the goroutine calling Serializer.CallAsync, but the result
+// of the call may still be waited upon at a later date.
+type CallResult interface {
+	// Wait is used to retrieve the result of the call.  The
+	// result is not cached in the CallResult object, so
+	// subsequent calls to Wait will return nil.
+	Wait() *Result
+
+	// TryWait is a non-blocking variant of Wait.  It attempts to
+	// retrieve the result, and returns the value and a boolean
+	// value that indicates whether the result has already been
+	// retrieved.
+	TryWait() (*Result, bool)
+
+	// Channel returns the channel that the CallResult object uses
+	// to receive the results.  This allows the caller to directly
+	// select on the channel.  Note that if the result has already
+	// been received, the channel returned by this method will be
+	// nil.  Using this method effectively closes the CallResult;
+	// subsequent calls to Wait and TryWait will return nil
+	// results.
+	Channel() <-chan *Result
+}
+
+// Serializer is an interface for doing the opposite of parallelizing
+// an operation.  The use case for Serializer is when something must
+// be done in a single goroutine, for synchronization, but the calls
+// need to be able to come from a multitude of goroutines.  In this
+// case, the client code would implement the Doer interface, then wrap
+// it using Serializer.
+type Serializer interface {
+	// Call is used to invoke the Doer.Do method of the wrapped
+	// Doer.  It may return an error if the Serializer is closed.
+	// Call is synchronous, and will not return until the Doer.Do
+	// method has completed.
+	Call(data interface{}) (*Result, error)
+
+	// CallAsync is used to invoke the Doer.Do method, like Call,
+	// but it does not block; instead, it returns a CallResult
+	// object, which may be queried later for the result of the
+	// call.
+	CallAsync(data interface{}) (CallResult, error)
+
+	// CallOnly is used to invoke the Doer.Do method, but it does
+	// not block; instead, the result of the call is discarded.
+	CallOnly(data interface{}) error
+
+	// Wait signals the manager goroutine to exit, then waits for
+	// it to do so.  The manager will call the Doer.Finish method
+	// and return its result to Wait, which will in turn return it
+	// to the caller.  The result will be cached to satisfy future
+	// calls to Wait.
+	Wait() interface{}
 }

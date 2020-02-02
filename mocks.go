@@ -100,3 +100,127 @@ func (m *MockWorker) Wait() (interface{}, error) {
 
 	return args.Get(0), args.Error(1)
 }
+
+// MockDoer is a mock for the Doer interface.  It is provided to
+// facilitate testing code that utilizes the serializer.
+type MockDoer struct {
+	mock.Mock
+}
+
+// Do does some operation.  It receives some data and returns some
+// result.  A serializer wraps a Doer to ensure the operation is done
+// in a single goroutine, synchronously.
+func (m *MockDoer) Do(data interface{}) interface{} {
+	args := m.MethodCalled("Do", data)
+
+	return args.Get(0)
+}
+
+// Finish is called when the manager goroutine of a Serializer
+// implementation has been signaled to exit.  It may return a value,
+// which becomes the return value from Serializer.Wait.
+func (m *MockDoer) Finish() interface{} {
+	args := m.MethodCalled("Finish")
+
+	return args.Get(0)
+}
+
+// MockCallResult is a mock for the CallResult interface.  It is
+// provided to facilitate testing code that utilizes the serializer.
+type MockCallResult struct {
+	mock.Mock
+}
+
+// Wait is used to retrieve the result of the call.  The result is not
+// cached in the CallResult object, so subsequent calls to Wait will
+// return nil.
+func (m *MockCallResult) Wait() *Result {
+	args := m.MethodCalled("Wait")
+
+	if result := args.Get(0); result != nil {
+		return result.(*Result)
+	}
+
+	return nil
+}
+
+// TryWait is a non-blocking variant of Wait.  It attempts to retrieve
+// the result, and returns the value and a boolean value that
+// indicates whether the result has already been retrieved.
+func (m *MockCallResult) TryWait() (*Result, bool) {
+	args := m.MethodCalled("TryWait")
+
+	if result := args.Get(0); result != nil {
+		return result.(*Result), args.Bool(1)
+	}
+
+	return nil, args.Bool(1)
+}
+
+// Channel returns the channel that the CallResult object uses to
+// receive the results.  This allows the caller to directly select on
+// the channel.  Note that if the result has already been received,
+// the channel returned by this method will be nil.  Using this method
+// effectively closes the CallResult; subsequent calls to Wait and
+// TryWait will return nil results.
+func (m *MockCallResult) Channel() <-chan *Result {
+	args := m.MethodCalled("Channel")
+
+	if resultChan := args.Get(0); resultChan != nil {
+		return resultChan.(<-chan *Result)
+	}
+
+	return nil
+}
+
+// MockSerializer is a mock for the Serializer interface.  It is
+// provided to facilitate testing code that utilizes Serializer
+// implementations.
+type MockSerializer struct {
+	mock.Mock
+}
+
+// Call is used to invoke the Doer.Do method of the wrapped Doer.  It
+// may return an error if the Serializer is closed.  Call is
+// synchronous, and will not return until the Doer.Do method has
+// completed.
+func (m *MockSerializer) Call(data interface{}) (*Result, error) {
+	args := m.MethodCalled("Call", data)
+
+	if result := args.Get(0); result != nil {
+		return result.(*Result), args.Error(1)
+	}
+
+	return nil, args.Error(1)
+}
+
+// CallAsync is used to invoke the Doer.Do method, like Call, but it
+// does not block; instead, it returns a CallResult object, which may
+// be queried later for the result of the call.
+func (m *MockSerializer) CallAsync(data interface{}) (CallResult, error) {
+	args := m.MethodCalled("CallAsync", data)
+
+	if result := args.Get(0); result != nil {
+		return result.(CallResult), args.Error(1)
+	}
+
+	return nil, args.Error(1)
+}
+
+// CallOnly is used to invoke the Doer.Do method, but it does not
+// block; instead, the result of the call is discarded.
+func (m *MockSerializer) CallOnly(data interface{}) error {
+	args := m.MethodCalled("CallOnly", data)
+
+	return args.Error(0)
+}
+
+// Wait signals the manager goroutine to exit, then waits for it to do
+// so.  The manager will call the Doer.Finish method and return its
+// result to Wait, which will in turn return it to the caller.  The
+// result will be cached to satisfy future calls to Wait.
+func (m *MockSerializer) Wait() interface{} {
+	args := m.MethodCalled("Wait")
+
+	return args.Get(0)
+}
