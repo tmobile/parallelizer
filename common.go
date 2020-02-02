@@ -21,19 +21,41 @@ import (
 
 // Various errors that may be returned by Worker.Call.
 var (
-	ErrWorkerClosed  = errors.New("Worker has been closed by a call to Wait")
+	ErrClosed        = errors.New("Object has been closed by a call to Wait")
 	ErrWouldDeadlock = errors.New("Called Wait from Integrate; would deadlock")
 )
 
-// workerState describes the state of the worker.
-type workerState int
+// Result describes a result from calling a Run or Do function.  These
+// functions are called in such a way as to capture panics, and the
+// Result structure will contain both the return value and the
+// captured panic.
+type Result struct {
+	Result interface{} // The function result
+	Panic  interface{} // The captured panic
+}
+
+// panicer wraps a Run method and captures any panics caused within
+// it.
+func panicer(fn func(interface{}) interface{}, data interface{}) (result *Result) {
+	// Ensure we capture panics
+	defer func() {
+		if panicData := recover(); panicData != nil {
+			result = &Result{Panic: panicData}
+		}
+	}()
+
+	return &Result{Result: fn(data)}
+}
+
+// pState describes the state of the worker or serializer.
+type pState int
 
 // Worker state values.
 const (
-	workerNew     workerState = iota // Worker is in the new state
-	workerRunning                    // Worker has been started and is running
-	workerClosed                     // Worker has been closed, but no results
-	workerResult                     // Worker has been closed, results available
+	pNew     pState = iota // New state, not started
+	pRunning               // Running state
+	pClosed                // Closed state, result hasn't been received yet
+	pResult                // Result state, result has been received
 )
 
 // selector groups together a reflect.SelectCase and a function that
@@ -87,24 +109,4 @@ func doSelect(selectors []selector) {
 
 	// Call the appropriate function
 	selectors[chosen].fn(value, ok)
-}
-
-// runResult is a struct that collects the return value of a Run
-// method and any panic that was captured.
-type runResult struct {
-	result    interface{} // The result of the Run call
-	panicData interface{} // Data captured from a panic
-}
-
-// panicer wraps a Run method and captures any panics caused within
-// it.
-func panicer(runner Runner, data interface{}) (result runResult) {
-	// Ensure we capture panics
-	defer func() {
-		if panicData := recover(); panicData != nil {
-			result = runResult{panicData: panicData}
-		}
-	}()
-
-	return runResult{result: runner.Run(data)}
 }

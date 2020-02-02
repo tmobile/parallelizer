@@ -23,7 +23,7 @@ import "container/list"
 // parallelization is intended to be optional, such as when ordering
 // may be important.
 type synchronousWorker struct {
-	state   workerState // State of the worker
+	state   pState      // State of the worker
 	runner  Runner      // The runner to be invoked by the workers
 	queue   *list.List  // A queue of submitted work items
 	running bool        // A flag indicating that Call is running
@@ -50,10 +50,10 @@ func (w *synchronousWorker) run() {
 		w.queue.Remove(elem)
 
 		// Run the runner with that data
-		result := panicer(w.runner, elem.Value)
+		result := panicer(w.runner.Run, elem.Value)
 
 		// Integrate the results
-		w.runner.Integrate(w, result.result, result.panicData)
+		w.runner.Integrate(w, result)
 	}
 }
 
@@ -63,14 +63,14 @@ func (w *synchronousWorker) run() {
 func (w *synchronousWorker) Call(data interface{}) error {
 	// Check the worker state
 	switch w.state {
-	case workerNew:
-		w.state = workerRunning
+	case pNew:
+		w.state = pRunning
 
-	case workerClosed, workerResult:
+	case pClosed, pResult:
 		// Accept recursive Calls even when closed, so we work
 		// all items
 		if !w.running {
-			return ErrWorkerClosed
+			return ErrClosed
 		}
 	}
 
@@ -108,9 +108,9 @@ func (w *synchronousWorker) Wait() (interface{}, error) {
 
 	// Check the worker state
 	switch w.state {
-	case workerNew, workerRunning, workerClosed: // Get the result
+	case pNew, pRunning, pClosed: // Get the result
 		w.result = w.runner.Result()
-		w.state = workerResult
+		w.state = pResult
 	}
 
 	return w.result, nil

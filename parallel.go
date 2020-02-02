@@ -43,11 +43,11 @@ type managerItem struct {
 // worker used to enable parallelization.
 type parallelWorker struct {
 	sync.Mutex
-	state   workerState      // State of the worker
+	state   pState           // State of the worker
 	runner  Runner           // The runner to be invoked by the workers
 	workers int              // Total number of workers to use
 	manager *parallelManager // The manager for the workers
-	gonner  *sync.Once       // A once invocation for getting the result
+	gonner  *sync.Once       // A once incarnation for getting the result
 	result  interface{}      // The result from the work
 }
 
@@ -92,8 +92,11 @@ func (w *parallelWorker) startManager() {
 // getResult is a helper for Wait to retrieve the result.  It's called
 // with parallelWorker.gonner to ensure that it only gets called once.
 func (w *parallelWorker) getResult() {
+	w.Lock()
+	defer w.Unlock()
+
 	w.result = w.runner.Result()
-	w.state = workerResult
+	w.state = pResult
 }
 
 // Call is the method used to submit data to be worked in a call to
@@ -105,12 +108,12 @@ func (w *parallelWorker) Call(data interface{}) error {
 	defer w.Unlock()
 
 	switch w.state {
-	case workerNew: // Need to start the manager
+	case pNew: // Need to start the manager
 		w.startManager()
-		w.state = workerRunning
+		w.state = pRunning
 
-	case workerClosed, workerResult: // Oh, we're closed
-		return ErrWorkerClosed
+	case pClosed, pResult: // Oh, we're closed
+		return ErrClosed
 	}
 
 	// OK, submit the data
@@ -131,24 +134,24 @@ func (w *parallelWorker) Wait() (interface{}, error) {
 	w.Lock()
 
 	switch w.state {
-	case workerNew: // Haven't even started yet
-		w.state = workerClosed
+	case pNew: // Haven't even started yet
+		w.state = pClosed
 		w.Unlock()
 		w.gonner.Do(w.getResult)
 
-	case workerRunning: // Signal to die, wait for done
-		w.state = workerClosed
+	case pRunning: // Signal to die, wait for done
+		w.state = pClosed
 		w.Unlock()
 		w.manager.submit <- &managerItem{done: true}
 		<-w.manager.done
 		w.manager = nil // clear to break cycle
 		w.gonner.Do(w.getResult)
 
-	case workerClosed: // Closed, waiting for result
+	case pClosed: // Closed, waiting for result
 		w.Unlock()
 		w.gonner.Do(w.getResult)
 
-	case workerResult: // Have result, just need to unlock
+	case pResult: // Have result, just need to unlock
 		w.Unlock()
 	}
 
@@ -177,7 +180,7 @@ func (w *parallelManager) workRunner(work <-chan interface{}) {
 
 	// Do the work
 	for data := range work {
-		result := panicer(w.worker.runner, data)
+		result := panicer(w.worker.runner.Run, data)
 		w.results <- &managerItem{data: result}
 	}
 }
@@ -214,8 +217,7 @@ func (w *parallelManager) receiveResult(result *managerItem) {
 	}
 
 	// Integrate the result
-	data := result.data.(runResult)
-	w.worker.runner.Integrate(w, data.result, data.panicData)
+	w.worker.runner.Integrate(w, result.data.(*Result))
 }
 
 // managerSelect performs an appropriate select call to coordinate the

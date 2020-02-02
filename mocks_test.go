@@ -37,9 +37,9 @@ func TestMockRunnerRun(t *testing.T) {
 func TestMockRunnerIntegrate(t *testing.T) {
 	worker := &MockWorker{}
 	obj := &MockRunner{}
-	obj.On("Integrate", worker, "result", nil)
+	obj.On("Integrate", worker, &Result{Result: "result"})
 
-	obj.Integrate(worker, "result", nil)
+	obj.Integrate(worker, &Result{Result: "result"})
 
 	obj.AssertExpectations(t)
 }

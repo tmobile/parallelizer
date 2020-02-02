@@ -75,7 +75,7 @@ type Runner interface {
 	// Note that Integrate is not running in the same goroutine as
 	// that which is making Worker.Call calls; in fact, those
 	// calls may be from multiple goroutines.
-	Integrate(worker Worker, result interface{}, panicData interface{})
+	Integrate(worker Worker, result *Result)
 
 	// Result is called by the Worker.Wait method a single time,
 	// once all the worker goroutines have been terminated.  It is

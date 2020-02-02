@@ -31,6 +31,7 @@ func TestParallelWorkerImplementsWorker(t *testing.T) {
 
 func TestNewParallelWorkerBase(t *testing.T) {
 	runner := &MockRunner{}
+
 	result := NewParallelWorker(runner, 5)
 
 	assert.Equal(t, &parallelWorker{
@@ -42,6 +43,7 @@ func TestNewParallelWorkerBase(t *testing.T) {
 
 func TestNewParallelWorkerNumCPU(t *testing.T) {
 	runner := &MockRunner{}
+
 	result := NewParallelWorker(runner, 0)
 
 	assert.Equal(t, &parallelWorker{
@@ -80,14 +82,14 @@ func TestParallelWorkerGetResult(t *testing.T) {
 	obj.getResult()
 
 	assert.Equal(t, "result", obj.result)
-	assert.Equal(t, workerResult, obj.state)
+	assert.Equal(t, pResult, obj.state)
 	runner.AssertExpectations(t)
 }
 
 func TestParallelWorkerCallNew(t *testing.T) {
 	runner := &MockRunner{}
 	runner.On("Run", "data").Return("result")
-	runner.On("Integrate", mock.Anything, "result", nil)
+	runner.On("Integrate", mock.Anything, &Result{Result: "result"})
 	obj := &parallelWorker{
 		runner:  runner,
 		workers: 3,
@@ -96,7 +98,7 @@ func TestParallelWorkerCallNew(t *testing.T) {
 	err := obj.Call("data")
 
 	assert.NoError(t, err)
-	assert.Equal(t, workerRunning, obj.state)
+	assert.Equal(t, pRunning, obj.state)
 	assert.NotNil(t, obj.manager)
 	obj.manager.submit <- &managerItem{done: true}
 	value := <-obj.manager.done
@@ -109,14 +111,14 @@ func TestParallelWorkerCallRunning(t *testing.T) {
 		submit: make(chan *managerItem, 1),
 	}
 	obj := &parallelWorker{
-		state:   workerRunning,
+		state:   pRunning,
 		manager: manager,
 	}
 
 	err := obj.Call("data")
 
 	assert.NoError(t, err)
-	assert.Equal(t, workerRunning, obj.state)
+	assert.Equal(t, pRunning, obj.state)
 	assert.Same(t, manager, obj.manager)
 	value := <-manager.submit
 	assert.Equal(t, &managerItem{data: "data"}, value)
@@ -124,25 +126,25 @@ func TestParallelWorkerCallRunning(t *testing.T) {
 
 func TestParallelWorkerCallClosed(t *testing.T) {
 	obj := &parallelWorker{
-		state: workerClosed,
+		state: pClosed,
 	}
 
 	err := obj.Call("data")
 
-	assert.Same(t, ErrWorkerClosed, err)
-	assert.Equal(t, workerClosed, obj.state)
+	assert.Same(t, ErrClosed, err)
+	assert.Equal(t, pClosed, obj.state)
 	assert.Nil(t, obj.manager)
 }
 
 func TestParallelWorkerCallResult(t *testing.T) {
 	obj := &parallelWorker{
-		state: workerResult,
+		state: pResult,
 	}
 
 	err := obj.Call("data")
 
-	assert.Same(t, ErrWorkerClosed, err)
-	assert.Equal(t, workerResult, obj.state)
+	assert.Same(t, ErrClosed, err)
+	assert.Equal(t, pResult, obj.state)
 	assert.Nil(t, obj.manager)
 }
 
@@ -153,14 +155,14 @@ func TestParallelWorkerWaitNew(t *testing.T) {
 		gonner: &sync.Once{},
 	}
 	runner.On("Result").Return("result").Run(func(args mock.Arguments) {
-		assert.Equal(t, workerClosed, obj.state)
+		assert.Equal(t, pClosed, obj.state)
 	})
 
 	result, err := obj.Wait()
 
 	assert.NoError(t, err)
 	assert.Equal(t, "result", result)
-	assert.Equal(t, workerResult, obj.state)
+	assert.Equal(t, pResult, obj.state)
 	assert.Nil(t, obj.manager)
 	assert.Equal(t, "result", obj.result)
 	runner.AssertExpectations(t)
@@ -173,21 +175,21 @@ func TestParallelWorkerWaitRunning(t *testing.T) {
 		done:   make(chan bool, 1),
 	}
 	obj := &parallelWorker{
-		state:   workerRunning,
+		state:   pRunning,
 		runner:  runner,
 		manager: manager,
 		gonner:  &sync.Once{},
 	}
 	obj.manager.done <- true
 	runner.On("Result").Return("result").Run(func(args mock.Arguments) {
-		assert.Equal(t, workerClosed, obj.state)
+		assert.Equal(t, pClosed, obj.state)
 	})
 
 	result, err := obj.Wait()
 
 	assert.NoError(t, err)
 	assert.Equal(t, "result", result)
-	assert.Equal(t, workerResult, obj.state)
+	assert.Equal(t, pResult, obj.state)
 	assert.Nil(t, obj.manager)
 	assert.Equal(t, "result", obj.result)
 	runner.AssertExpectations(t)
@@ -198,19 +200,19 @@ func TestParallelWorkerWaitRunning(t *testing.T) {
 func TestParallelWorkerWaitClosed(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &parallelWorker{
-		state:  workerClosed,
+		state:  pClosed,
 		runner: runner,
 		gonner: &sync.Once{},
 	}
 	runner.On("Result").Return("result").Run(func(args mock.Arguments) {
-		assert.Equal(t, workerClosed, obj.state)
+		assert.Equal(t, pClosed, obj.state)
 	})
 
 	result, err := obj.Wait()
 
 	assert.NoError(t, err)
 	assert.Equal(t, "result", result)
-	assert.Equal(t, workerResult, obj.state)
+	assert.Equal(t, pResult, obj.state)
 	assert.Nil(t, obj.manager)
 	assert.Equal(t, "result", obj.result)
 	runner.AssertExpectations(t)
@@ -219,7 +221,7 @@ func TestParallelWorkerWaitClosed(t *testing.T) {
 func TestParallelWorkerWaitResult(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &parallelWorker{
-		state:  workerResult,
+		state:  pResult,
 		runner: runner,
 		result: "result",
 	}
@@ -228,7 +230,7 @@ func TestParallelWorkerWaitResult(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "result", result)
-	assert.Equal(t, workerResult, obj.state)
+	assert.Equal(t, pResult, obj.state)
 	assert.Nil(t, obj.manager)
 	assert.Equal(t, "result", obj.result)
 	runner.AssertExpectations(t)
@@ -261,8 +263,8 @@ func TestParallelManagerWorkRunner(t *testing.T) {
 		results = append(results, item)
 	}
 	assert.Equal(t, []*managerItem{
-		{data: runResult{result: "result1"}},
-		{data: runResult{result: "result2"}},
+		{data: &Result{Result: "result1"}},
+		{data: &Result{Result: "result2"}},
 		{done: true},
 	}, results)
 	runner.AssertExpectations(t)
@@ -320,8 +322,8 @@ func TestParallelManagerReceiveResultData(t *testing.T) {
 		},
 		count: 5,
 	}
-	runner.On("Integrate", obj, "data", nil)
-	item := &managerItem{data: runResult{result: "data"}}
+	runner.On("Integrate", obj, &Result{Result: "data"})
+	item := &managerItem{data: &Result{Result: "data"}}
 
 	obj.receiveResult(item)
 

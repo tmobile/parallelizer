@@ -57,8 +57,8 @@ func (m *MockRunner) Run(data interface{}) interface{} {
 // Note that Integrate is not running in the same goroutine as that
 // which is making Worker.Call calls; in fact, those calls may be from
 // multiple goroutines.
-func (m *MockRunner) Integrate(worker Worker, result interface{}, panicData interface{}) {
-	m.MethodCalled("Integrate", worker, result, panicData)
+func (m *MockRunner) Integrate(worker Worker, result *Result) {
+	m.MethodCalled("Integrate", worker, result)
 }
 
 // Result is called by the Worker.Wait method a single time, once all

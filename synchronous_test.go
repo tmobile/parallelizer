@@ -45,7 +45,7 @@ func TestSynchronousWorkerRun(t *testing.T) {
 	}
 	obj.queue.PushBack("value")
 	runner.On("Run", "value").Return("result")
-	runner.On("Integrate", obj, "result", nil)
+	runner.On("Integrate", obj, &Result{Result: "result"})
 
 	obj.run()
 
@@ -56,19 +56,19 @@ func TestSynchronousWorkerRun(t *testing.T) {
 func TestSynchronousWorkerCallBase(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{
-		state:  workerRunning,
+		state:  pRunning,
 		runner: runner,
 		queue:  &list.List{},
 	}
 	runner.On("Run", "data").Return("result").Run(func(args mock.Arguments) {
 		assert.True(t, obj.running)
 	})
-	runner.On("Integrate", obj, "result", nil)
+	runner.On("Integrate", obj, &Result{Result: "result"})
 
 	err := obj.Call("data")
 
 	assert.NoError(t, err)
-	assert.Equal(t, workerRunning, obj.state)
+	assert.Equal(t, pRunning, obj.state)
 	assert.False(t, obj.running)
 	assert.Equal(t, 0, obj.queue.Len())
 	runner.AssertExpectations(t)
@@ -77,7 +77,7 @@ func TestSynchronousWorkerCallBase(t *testing.T) {
 func TestSynchronousWorkerCallRunning(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{
-		state:   workerRunning,
+		state:   pRunning,
 		runner:  runner,
 		queue:   &list.List{},
 		running: true,
@@ -86,7 +86,7 @@ func TestSynchronousWorkerCallRunning(t *testing.T) {
 	err := obj.Call("data")
 
 	assert.NoError(t, err)
-	assert.Equal(t, workerRunning, obj.state)
+	assert.Equal(t, pRunning, obj.state)
 	assert.True(t, obj.running)
 	assert.Equal(t, 1, obj.queue.Len())
 	assert.Equal(t, "data", obj.queue.Front().Value)
@@ -102,12 +102,12 @@ func TestSynchronousWorkerCallNew(t *testing.T) {
 	runner.On("Run", "data").Return("result").Run(func(args mock.Arguments) {
 		assert.True(t, obj.running)
 	})
-	runner.On("Integrate", obj, "result", nil)
+	runner.On("Integrate", obj, &Result{Result: "result"})
 
 	err := obj.Call("data")
 
 	assert.NoError(t, err)
-	assert.Equal(t, workerRunning, obj.state)
+	assert.Equal(t, pRunning, obj.state)
 	assert.False(t, obj.running)
 	assert.Equal(t, 0, obj.queue.Len())
 	runner.AssertExpectations(t)
@@ -116,15 +116,15 @@ func TestSynchronousWorkerCallNew(t *testing.T) {
 func TestSynchronousWorkerCallClosed(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{
-		state:  workerClosed,
+		state:  pClosed,
 		runner: runner,
 		queue:  &list.List{},
 	}
 
 	err := obj.Call("data")
 
-	assert.Same(t, ErrWorkerClosed, err)
-	assert.Equal(t, workerClosed, obj.state)
+	assert.Same(t, ErrClosed, err)
+	assert.Equal(t, pClosed, obj.state)
 	assert.False(t, obj.running)
 	assert.Equal(t, 0, obj.queue.Len())
 	runner.AssertExpectations(t)
@@ -133,15 +133,15 @@ func TestSynchronousWorkerCallClosed(t *testing.T) {
 func TestSynchronousWorkerCallResult(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{
-		state:  workerResult,
+		state:  pResult,
 		runner: runner,
 		queue:  &list.List{},
 	}
 
 	err := obj.Call("data")
 
-	assert.Same(t, ErrWorkerClosed, err)
-	assert.Equal(t, workerResult, obj.state)
+	assert.Same(t, ErrClosed, err)
+	assert.Equal(t, pResult, obj.state)
 	assert.False(t, obj.running)
 	assert.Equal(t, 0, obj.queue.Len())
 	runner.AssertExpectations(t)
@@ -150,7 +150,7 @@ func TestSynchronousWorkerCallResult(t *testing.T) {
 func TestSynchronousWorkerCallClosedRunning(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{
-		state:   workerClosed,
+		state:   pClosed,
 		runner:  runner,
 		queue:   &list.List{},
 		running: true,
@@ -159,7 +159,7 @@ func TestSynchronousWorkerCallClosedRunning(t *testing.T) {
 	err := obj.Call("data")
 
 	assert.NoError(t, err)
-	assert.Equal(t, workerClosed, obj.state)
+	assert.Equal(t, pClosed, obj.state)
 	assert.True(t, obj.running)
 	assert.Equal(t, 1, obj.queue.Len())
 	assert.Equal(t, "data", obj.queue.Front().Value)
@@ -169,7 +169,7 @@ func TestSynchronousWorkerCallClosedRunning(t *testing.T) {
 func TestSynchronousWorkerCallResultRunning(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{
-		state:   workerResult,
+		state:   pResult,
 		runner:  runner,
 		queue:   &list.List{},
 		running: true,
@@ -178,7 +178,7 @@ func TestSynchronousWorkerCallResultRunning(t *testing.T) {
 	err := obj.Call("data")
 
 	assert.NoError(t, err)
-	assert.Equal(t, workerResult, obj.state)
+	assert.Equal(t, pResult, obj.state)
 	assert.True(t, obj.running)
 	assert.Equal(t, 1, obj.queue.Len())
 	assert.Equal(t, "data", obj.queue.Front().Value)
@@ -196,14 +196,14 @@ func TestSynchronousWorkerWaitNew(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "result", result)
-	assert.Equal(t, workerResult, obj.state)
+	assert.Equal(t, pResult, obj.state)
 	assert.Equal(t, "result", obj.result)
 }
 
 func TestSynchronousWorkerWaitRunning(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{
-		state:  workerRunning,
+		state:  pRunning,
 		runner: runner,
 	}
 	runner.On("Result").Return("result")
@@ -212,14 +212,14 @@ func TestSynchronousWorkerWaitRunning(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "result", result)
-	assert.Equal(t, workerResult, obj.state)
+	assert.Equal(t, pResult, obj.state)
 	assert.Equal(t, "result", obj.result)
 }
 
 func TestSynchronousWorkerWaitClosed(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{
-		state:  workerClosed,
+		state:  pClosed,
 		runner: runner,
 	}
 	runner.On("Result").Return("result")
@@ -228,14 +228,14 @@ func TestSynchronousWorkerWaitClosed(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "result", result)
-	assert.Equal(t, workerResult, obj.state)
+	assert.Equal(t, pResult, obj.state)
 	assert.Equal(t, "result", obj.result)
 }
 
 func TestSynchronousWorkerWaitResult(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{
-		state:  workerResult,
+		state:  pResult,
 		runner: runner,
 		result: "result",
 	}
@@ -244,14 +244,14 @@ func TestSynchronousWorkerWaitResult(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "result", result)
-	assert.Equal(t, workerResult, obj.state)
+	assert.Equal(t, pResult, obj.state)
 	assert.Equal(t, "result", obj.result)
 }
 
 func TestSynchronousWorkerWaitDeadlock(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{
-		state:   workerRunning,
+		state:   pRunning,
 		runner:  runner,
 		running: true,
 		result:  "result",
@@ -261,5 +261,5 @@ func TestSynchronousWorkerWaitDeadlock(t *testing.T) {
 
 	assert.Same(t, ErrWouldDeadlock, err)
 	assert.Nil(t, result)
-	assert.Equal(t, workerRunning, obj.state)
+	assert.Equal(t, pRunning, obj.state)
 }
