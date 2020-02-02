@@ -25,6 +25,63 @@ of worker goroutines in a simple manner.  This is not intended as an
 external job queue, where outside programs may submit jobs, although
 it could easily be used to implement such a tool.
 
+Interfaces
+==========
+
+The workers in this package implement the ``Worker`` interface,
+consisting of two methods: ``Call()`` submits data to be worked on,
+while ``Wait()`` stops data submission and waits for a final result.
+Each worker is initialized with an instance of ``Runner`` provided by
+the caller.  A ``Runner`` must provide 3 methods: ``Run()``, which
+acts on the data and returns a result; ``Integrate()``, which takes a
+result produced by ``Run()`` and combines it with the other results
+collected so far in an application-dependent fashion; and
+``Result()``, which returns the final integrated result.  Note that
+each of these three methods may potentially run in a different
+goroutine, and ``Run()`` may be invoked in parallel many times, but
+calls to ``Integrate()`` are all performed synchronously, and
+``Result()`` is only called once after all calls to ``Run()`` and
+``Integrate()`` have completed.  Further, it is not safe to call the
+methods of the same ``Worker`` instance from any of the ``Runner``
+methods, but the ``Integrate()`` method will be called with an
+instance of ``Worker`` that it is safe to call ``Call()`` on, allowing
+recursion by having ``Run()`` return lists of additional data that
+``Integrate()`` then passes to ``Call()``.
+
+Available Implementations
+-------------------------
+
+The parallelizer package provides 3 implementations of the ``Worker``
+interface.  The first is ``MockWorker``, which is a simple struct that
+may be used to mock the parallelizer out for the purposes of unit
+testing.
+
+The second implementation of ``Worker`` is a trivial implementation of
+a synchronous worker, where all activity happens in a single
+goroutine: the one that is calling the ``Call()`` and ``Wait()``
+methods.  This worker is not thread-safe, and should not be used
+simultaneously from different goroutines.  An instance of a
+synchronous worker may be created by passing the application's
+``Runner`` to the ``NewSynchronousWorker()`` function.
+
+The third implementation of ``Worker`` is a parallel worker; this
+worker starts up a defined number of worker goroutines, plus a manager
+goroutine.  This worker can be called into from almost any goroutine
+(subject to the restriction noted above: ``Run()``, ``Integrate()``,
+and ``Result()`` cannot invoke ``Call()`` on the worker itself, but
+``Integrate()`` is passed a variant that is safe to ``Call()``).  To
+create an instance of a parallel worker, pass the runner and the
+desired number of worker goroutines to the ``NewParallelWorker()``
+function.
+
+Additional Utilities
+--------------------
+
+The parallelizer package also provides a ``MockRunner``, a struct
+which implements the ``Runner`` interface.  This may be useful for
+other applications that utilize ``Runner``, or which need to pass
+``Runner`` instances around internally.
+
 Testing
 =======
 
