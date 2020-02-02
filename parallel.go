@@ -22,9 +22,9 @@ import (
 
 // Sizes of the submit, work, and results channels.
 const (
-	SubmitBuffer  = 100
-	WorkBuffer    = 100
-	ResultsBuffer = 100
+	submitBuffer  = 100
+	workBuffer    = 100
+	resultsBuffer = 100
 )
 
 // managerItem is a structure for communicating to the manager.  When
@@ -79,9 +79,9 @@ func (w *parallelWorker) startManager() {
 	w.manager = &parallelManager{
 		worker:  w,
 		queue:   &list.List{},
-		submit:  make(chan *managerItem, SubmitBuffer),
-		work:    make(chan interface{}, WorkBuffer),
-		results: make(chan *managerItem, ResultsBuffer),
+		submit:  make(chan *managerItem, submitBuffer),
+		work:    make(chan interface{}, workBuffer),
+		results: make(chan *managerItem, resultsBuffer),
 		done:    make(chan bool, 1),
 	}
 
