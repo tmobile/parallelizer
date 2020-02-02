@@ -147,6 +147,44 @@ func TestSynchronousWorkerCallResult(t *testing.T) {
 	runner.AssertExpectations(t)
 }
 
+func TestSynchronousWorkerCallClosedRunning(t *testing.T) {
+	runner := &MockRunner{}
+	obj := &synchronousWorker{
+		state:   workerClosed,
+		runner:  runner,
+		queue:   &list.List{},
+		running: true,
+	}
+
+	err := obj.Call("data")
+
+	assert.NoError(t, err)
+	assert.Equal(t, workerClosed, obj.state)
+	assert.True(t, obj.running)
+	assert.Equal(t, 1, obj.queue.Len())
+	assert.Equal(t, "data", obj.queue.Front().Value)
+	runner.AssertExpectations(t)
+}
+
+func TestSynchronousWorkerCallResultRunning(t *testing.T) {
+	runner := &MockRunner{}
+	obj := &synchronousWorker{
+		state:   workerResult,
+		runner:  runner,
+		queue:   &list.List{},
+		running: true,
+	}
+
+	err := obj.Call("data")
+
+	assert.NoError(t, err)
+	assert.Equal(t, workerResult, obj.state)
+	assert.True(t, obj.running)
+	assert.Equal(t, 1, obj.queue.Len())
+	assert.Equal(t, "data", obj.queue.Front().Value)
+	runner.AssertExpectations(t)
+}
+
 func TestSynchronousWorkerWaitNew(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{

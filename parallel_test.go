@@ -462,7 +462,7 @@ func TestParallelManagerManagerStartsWorkers(t *testing.T) {
 	assert.True(t, done)
 }
 
-func TestParallelManagerCallBase(t *testing.T) {
+func TestParallelManagerCall(t *testing.T) {
 	obj := &parallelManager{
 		queue: &list.List{},
 	}
@@ -472,18 +472,6 @@ func TestParallelManagerCallBase(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, obj.queue.Len())
 	assert.Equal(t, "data", obj.queue.Front().Value)
-}
-
-func TestParallelManagerCallExiting(t *testing.T) {
-	obj := &parallelManager{
-		exiting: true,
-		queue:   &list.List{},
-	}
-
-	err := obj.Call("data")
-
-	assert.Same(t, ErrWorkerClosed, err)
-	assert.Equal(t, 0, obj.queue.Len())
 }
 
 func TestParallelManagerWait(t *testing.T) {

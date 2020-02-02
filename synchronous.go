@@ -67,7 +67,11 @@ func (w *synchronousWorker) Call(data interface{}) error {
 		w.state = workerRunning
 
 	case workerClosed, workerResult:
-		return ErrWorkerClosed
+		// Accept recursive Calls even when closed, so we work
+		// all items
+		if !w.running {
+			return ErrWorkerClosed
+		}
 	}
 
 	// Enqueue the data

@@ -281,16 +281,6 @@ func (w *parallelManager) manager() {
 // the Runner.Run method.  It may return an error if the parallelizer
 // has been shut down through a call to Wait.
 func (w *parallelManager) Call(data interface{}) error {
-	// Check if the manager is exiting
-	if w.exiting {
-		// Worker is closed, don't accept more submissions.
-		// Note that there is a window between when
-		// parallelWorker.Wait is called and when w.exiting
-		// gets set to false; that isn't a problem, however,
-		// and should be expected.
-		return ErrWorkerClosed
-	}
-
 	// Add the data to the queue
 	w.queue.PushBack(data)
 
