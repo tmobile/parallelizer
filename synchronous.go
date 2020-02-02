@@ -50,10 +50,10 @@ func (w *synchronousWorker) run() {
 		w.queue.Remove(elem)
 
 		// Run the runner with that data
-		result := w.runner.Run(elem.Value)
+		result := panicer(w.runner, elem.Value)
 
 		// Integrate the results
-		w.runner.Integrate(w, result)
+		w.runner.Integrate(w, result.result, result.panicData)
 	}
 }
 

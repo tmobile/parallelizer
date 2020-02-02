@@ -87,7 +87,7 @@ func TestParallelWorkerGetResult(t *testing.T) {
 func TestParallelWorkerCallNew(t *testing.T) {
 	runner := &MockRunner{}
 	runner.On("Run", "data").Return("result")
-	runner.On("Integrate", mock.Anything, "result")
+	runner.On("Integrate", mock.Anything, "result", nil)
 	obj := &parallelWorker{
 		runner:  runner,
 		workers: 3,
@@ -261,8 +261,8 @@ func TestParallelManagerWorkRunner(t *testing.T) {
 		results = append(results, item)
 	}
 	assert.Equal(t, []*managerItem{
-		{data: "result1"},
-		{data: "result2"},
+		{data: runResult{result: "result1"}},
+		{data: runResult{result: "result2"}},
 		{done: true},
 	}, results)
 	runner.AssertExpectations(t)
@@ -320,8 +320,8 @@ func TestParallelManagerReceiveResultData(t *testing.T) {
 		},
 		count: 5,
 	}
-	runner.On("Integrate", obj, "data")
-	item := &managerItem{data: "data"}
+	runner.On("Integrate", obj, "data", nil)
+	item := &managerItem{data: runResult{result: "data"}}
 
 	obj.receiveResult(item)
 

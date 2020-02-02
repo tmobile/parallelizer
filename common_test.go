@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestSelectSend(t *testing.T) {
@@ -73,4 +74,28 @@ func TestDoSelect(t *testing.T) {
 	doSelect([]selector{sel})
 
 	assert.True(t, funcCalled)
+}
+
+func TestPanicerBase(t *testing.T) {
+	runner := &MockRunner{}
+	runner.On("Run", "data").Return("result")
+
+	result := panicer(runner, "data")
+
+	assert.Equal(t, runResult{
+		result: "result",
+	}, result)
+}
+
+func TestPanicerPanic(t *testing.T) {
+	runner := &MockRunner{}
+	runner.On("Run", "data").Return("result").Run(func(args mock.Arguments) {
+		panic("this is a test")
+	})
+
+	result := panicer(runner, "data")
+
+	assert.Equal(t, runResult{
+		panicData: "this is a test",
+	}, result)
 }

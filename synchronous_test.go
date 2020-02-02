@@ -45,7 +45,7 @@ func TestSynchronousWorkerRun(t *testing.T) {
 	}
 	obj.queue.PushBack("value")
 	runner.On("Run", "value").Return("result")
-	runner.On("Integrate", obj, "result")
+	runner.On("Integrate", obj, "result", nil)
 
 	obj.run()
 
@@ -63,7 +63,7 @@ func TestSynchronousWorkerCallBase(t *testing.T) {
 	runner.On("Run", "data").Return("result").Run(func(args mock.Arguments) {
 		assert.True(t, obj.running)
 	})
-	runner.On("Integrate", obj, "result")
+	runner.On("Integrate", obj, "result", nil)
 
 	err := obj.Call("data")
 
@@ -102,7 +102,7 @@ func TestSynchronousWorkerCallNew(t *testing.T) {
 	runner.On("Run", "data").Return("result").Run(func(args mock.Arguments) {
 		assert.True(t, obj.running)
 	})
-	runner.On("Integrate", obj, "result")
+	runner.On("Integrate", obj, "result", nil)
 
 	err := obj.Call("data")
 

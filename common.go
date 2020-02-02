@@ -88,3 +88,23 @@ func doSelect(selectors []selector) {
 	// Call the appropriate function
 	selectors[chosen].fn(value, ok)
 }
+
+// runResult is a struct that collects the return value of a Run
+// method and any panic that was captured.
+type runResult struct {
+	result    interface{} // The result of the Run call
+	panicData interface{} // Data captured from a panic
+}
+
+// panicer wraps a Run method and captures any panics caused within
+// it.
+func panicer(runner Runner, data interface{}) (result runResult) {
+	// Ensure we capture panics
+	defer func() {
+		if panicData := recover(); panicData != nil {
+			result = runResult{panicData: panicData}
+		}
+	}()
+
+	return runResult{result: runner.Run(data)}
+}

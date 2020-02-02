@@ -68,12 +68,14 @@ type Runner interface {
 	// calls to Integrate.  The idea of Integrate is to allow the
 	// results from the various Run method calls to be combined
 	// together into a single result, which may then be obtained
-	// through a call to Result.
+	// through a call to Result.  Note that if Run panics, the
+	// data will be passed to Integrate as the "panicData"
+	// parameter, and the "result" parameter will be nil.
 	//
 	// Note that Integrate is not running in the same goroutine as
 	// that which is making Worker.Call calls; in fact, those
 	// calls may be from multiple goroutines.
-	Integrate(worker Worker, result interface{})
+	Integrate(worker Worker, result interface{}, panicData interface{})
 
 	// Result is called by the Worker.Wait method a single time,
 	// once all the worker goroutines have been terminated.  It is

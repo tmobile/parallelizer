@@ -177,7 +177,7 @@ func (w *parallelManager) workRunner(work <-chan interface{}) {
 
 	// Do the work
 	for data := range work {
-		result := w.worker.runner.Run(data)
+		result := panicer(w.worker.runner, data)
 		w.results <- &managerItem{data: result}
 	}
 }
@@ -214,7 +214,8 @@ func (w *parallelManager) receiveResult(result *managerItem) {
 	}
 
 	// Integrate the result
-	w.worker.runner.Integrate(w, result.data)
+	data := result.data.(runResult)
+	w.worker.runner.Integrate(w, data.result, data.panicData)
 }
 
 // managerSelect performs an appropriate select call to coordinate the
