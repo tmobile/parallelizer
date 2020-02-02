@@ -84,5 +84,5 @@ type Worker interface {
 	// called before any calls to Call, the parallelizer will go
 	// straight to a stopped state, and no further Call calls may
 	// be made; the return value will be nil in that case.
-	Wait() interface{}
+	Wait() (interface{}, error)
 }

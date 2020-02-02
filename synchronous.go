@@ -23,28 +23,12 @@ import "container/list"
 // parallelization is intended to be optional, such as when ordering
 // may be important.
 type synchronousWorker struct {
-	runner     Runner      // The runner to be invoked by the workers
-	queue      *list.List  // A queue of submitted work items
-	closed     bool        // A flag indicating that the worker is closed
-	running    bool        // A flag indicating that Call is running
-	haveResult bool        // A flag indicating that we have a result
-	result     interface{} // The result that came from calling Runner.Result
+	state   workerState // State of the worker
+	runner  Runner      // The runner to be invoked by the workers
+	queue   *list.List  // A queue of submitted work items
+	running bool        // A flag indicating that Call is running
+	result  interface{} // The result that came from calling Runner.Result
 }
-
-// A synchronous worker has some subtle logic going on.  First, Call
-// and Wait may be called by the Integrate method of the Runner; so,
-// we have to protect Call to allow additional items to be added to
-// the queue--so we don't end up with a deep stack.  Second, Wait
-// cannot return until all items added to the queue have been
-// processed; so it has to also be able to process calls (thus the run
-// method below).  Fortunately, the specification allows Wait to
-// inhibit further calls to Call; that's done with the "closed" flag,
-// and the "running" flag allows Call to just enqueue items when
-// called from Integrate.  However, we could end up with a scenario
-// where Call has called Integrate, which has called Wait, which has
-// to run some items, where another Integrate call also calls Wait; to
-// avoid calling Result multiple times in this scenario, we protect
-// the "result" field by a "haveResult" boolean.
 
 // NewSynchronousWorker constructs a synchronous worker.  Synchronous
 // workers do not utilize parallelism at all; they are provided to
@@ -77,8 +61,12 @@ func (w *synchronousWorker) run() {
 // the Runner.Run method.  It may return an error if the parallelizer
 // has been shut down through a call to Wait.
 func (w *synchronousWorker) Call(data interface{}) error {
-	// First, check if the worker is closed
-	if w.closed {
+	// Check the worker state
+	switch w.state {
+	case workerNew:
+		w.state = workerRunning
+
+	case workerClosed, workerResult:
 		return ErrWorkerClosed
 	}
 
@@ -109,26 +97,18 @@ func (w *synchronousWorker) Call(data interface{}) error {
 // the parallelizer will go straight to a stopped state, and no
 // further Call calls may be made; the return value will be nil in
 // that case.
-func (w *synchronousWorker) Wait() interface{} {
-	// If we have the result, return it
-	if w.haveResult {
-		return w.result
+func (w *synchronousWorker) Wait() (interface{}, error) {
+	// Detect deadlocks
+	if w.running {
+		return nil, ErrWouldDeadlock
 	}
 
-	// Close the worker so no new items get added
-	w.closed = true
-
-	// If there's more in the queue, we need to finish executing
-	// it
-	if w.queue.Len() > 0 {
-		w.run()
-	}
-
-	// Check if another Wait set the result before we overwrite it
-	if !w.haveResult {
+	// Check the worker state
+	switch w.state {
+	case workerNew, workerRunning, workerClosed: // Get the result
 		w.result = w.runner.Result()
-		w.haveResult = true
+		w.state = workerResult
 	}
 
-	return w.result
+	return w.result, nil
 }

@@ -56,6 +56,7 @@ func TestSynchronousWorkerRun(t *testing.T) {
 func TestSynchronousWorkerCallBase(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{
+		state:  workerRunning,
 		runner: runner,
 		queue:  &list.List{},
 	}
@@ -67,6 +68,7 @@ func TestSynchronousWorkerCallBase(t *testing.T) {
 	err := obj.Call("data")
 
 	assert.NoError(t, err)
+	assert.Equal(t, workerRunning, obj.state)
 	assert.False(t, obj.running)
 	assert.Equal(t, 0, obj.queue.Len())
 	runner.AssertExpectations(t)
@@ -75,6 +77,7 @@ func TestSynchronousWorkerCallBase(t *testing.T) {
 func TestSynchronousWorkerCallRunning(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{
+		state:   workerRunning,
 		runner:  runner,
 		queue:   &list.List{},
 		running: true,
@@ -83,102 +86,142 @@ func TestSynchronousWorkerCallRunning(t *testing.T) {
 	err := obj.Call("data")
 
 	assert.NoError(t, err)
+	assert.Equal(t, workerRunning, obj.state)
 	assert.True(t, obj.running)
 	assert.Equal(t, 1, obj.queue.Len())
 	assert.Equal(t, "data", obj.queue.Front().Value)
 	runner.AssertExpectations(t)
 }
 
-func TestSynchronousWorkerCallClosed(t *testing.T) {
+func TestSynchronousWorkerCallNew(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{
 		runner: runner,
 		queue:  &list.List{},
-		closed: true,
 	}
+	runner.On("Run", "data").Return("result").Run(func(args mock.Arguments) {
+		assert.True(t, obj.running)
+	})
+	runner.On("Integrate", obj, "result")
 
 	err := obj.Call("data")
 
-	assert.Same(t, ErrWorkerClosed, err)
+	assert.NoError(t, err)
+	assert.Equal(t, workerRunning, obj.state)
 	assert.False(t, obj.running)
 	assert.Equal(t, 0, obj.queue.Len())
 	runner.AssertExpectations(t)
 }
 
-func TestSynchronousWorkerWaitBase(t *testing.T) {
+func TestSynchronousWorkerCallClosed(t *testing.T) {
+	runner := &MockRunner{}
+	obj := &synchronousWorker{
+		state:  workerClosed,
+		runner: runner,
+		queue:  &list.List{},
+	}
+
+	err := obj.Call("data")
+
+	assert.Same(t, ErrWorkerClosed, err)
+	assert.Equal(t, workerClosed, obj.state)
+	assert.False(t, obj.running)
+	assert.Equal(t, 0, obj.queue.Len())
+	runner.AssertExpectations(t)
+}
+
+func TestSynchronousWorkerCallResult(t *testing.T) {
+	runner := &MockRunner{}
+	obj := &synchronousWorker{
+		state:  workerResult,
+		runner: runner,
+		queue:  &list.List{},
+	}
+
+	err := obj.Call("data")
+
+	assert.Same(t, ErrWorkerClosed, err)
+	assert.Equal(t, workerResult, obj.state)
+	assert.False(t, obj.running)
+	assert.Equal(t, 0, obj.queue.Len())
+	runner.AssertExpectations(t)
+}
+
+func TestSynchronousWorkerWaitNew(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{
 		runner: runner,
-		queue:  &list.List{},
 	}
 	runner.On("Result").Return("result")
 
-	result := obj.Wait()
+	result, err := obj.Wait()
 
+	assert.NoError(t, err)
 	assert.Equal(t, "result", result)
-	assert.True(t, obj.closed)
-	assert.True(t, obj.haveResult)
+	assert.Equal(t, workerResult, obj.state)
 	assert.Equal(t, "result", obj.result)
-	assert.Equal(t, 0, obj.queue.Len())
 }
 
-func TestSynchronousWorkerWaitHaveResult(t *testing.T) {
+func TestSynchronousWorkerWaitRunning(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{
-		runner:     runner,
-		queue:      &list.List{},
-		closed:     true,
-		haveResult: true,
-		result:     "result",
-	}
-
-	result := obj.Wait()
-
-	assert.Equal(t, "result", result)
-	assert.True(t, obj.closed)
-	assert.True(t, obj.haveResult)
-	assert.Equal(t, "result", obj.result)
-	assert.Equal(t, 0, obj.queue.Len())
-}
-
-func TestSynchronousWorkerWaitEnqueued(t *testing.T) {
-	runner := &MockRunner{}
-	obj := &synchronousWorker{
+		state:  workerRunning,
 		runner: runner,
-		queue:  &list.List{},
 	}
-	runner.On("Run", "data").Return("integrate")
-	runner.On("Integrate", obj, "integrate")
 	runner.On("Result").Return("result")
-	obj.queue.PushBack("data")
 
-	result := obj.Wait()
+	result, err := obj.Wait()
 
+	assert.NoError(t, err)
 	assert.Equal(t, "result", result)
-	assert.True(t, obj.closed)
-	assert.True(t, obj.haveResult)
+	assert.Equal(t, workerResult, obj.state)
 	assert.Equal(t, "result", obj.result)
-	assert.Equal(t, 0, obj.queue.Len())
 }
 
-func TestSynchronousWorkerWaitEnqueuedGivesResult(t *testing.T) {
+func TestSynchronousWorkerWaitClosed(t *testing.T) {
 	runner := &MockRunner{}
 	obj := &synchronousWorker{
+		state:  workerClosed,
 		runner: runner,
-		queue:  &list.List{},
 	}
-	runner.On("Run", "data").Return("integrate")
-	runner.On("Integrate", obj, "integrate").Run(func(args mock.Arguments) {
-		obj.haveResult = true
-		obj.result = "result"
-	})
-	obj.queue.PushBack("data")
+	runner.On("Result").Return("result")
 
-	result := obj.Wait()
+	result, err := obj.Wait()
 
+	assert.NoError(t, err)
 	assert.Equal(t, "result", result)
-	assert.True(t, obj.closed)
-	assert.True(t, obj.haveResult)
+	assert.Equal(t, workerResult, obj.state)
 	assert.Equal(t, "result", obj.result)
-	assert.Equal(t, 0, obj.queue.Len())
+}
+
+func TestSynchronousWorkerWaitResult(t *testing.T) {
+	runner := &MockRunner{}
+	obj := &synchronousWorker{
+		state:  workerResult,
+		runner: runner,
+		result: "result",
+	}
+
+	result, err := obj.Wait()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "result", result)
+	assert.Equal(t, workerResult, obj.state)
+	assert.Equal(t, "result", obj.result)
+}
+
+func TestSynchronousWorkerWaitDeadlock(t *testing.T) {
+	runner := &MockRunner{}
+	obj := &synchronousWorker{
+		state:   workerRunning,
+		runner:  runner,
+		running: true,
+		result:  "result",
+	}
+
+	result, err := obj.Wait()
+
+	assert.Same(t, ErrWouldDeadlock, err)
+	assert.Nil(t, result)
+	assert.Equal(t, workerRunning, obj.state)
 }

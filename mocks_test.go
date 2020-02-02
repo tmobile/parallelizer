@@ -70,10 +70,11 @@ func TestMockWorkerCall(t *testing.T) {
 
 func TestMockWorkerWait(t *testing.T) {
 	obj := &MockWorker{}
-	obj.On("Wait").Return("result")
+	obj.On("Wait").Return("result", assert.AnError)
 
-	result := obj.Wait()
+	result, err := obj.Wait()
 
+	assert.Same(t, assert.AnError, err)
 	assert.Equal(t, "result", result)
 	obj.AssertExpectations(t)
 }

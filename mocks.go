@@ -93,8 +93,8 @@ func (m *MockWorker) Call(data interface{}) error {
 // called before any calls to Call, the parallelizer will go
 // straight to a stopped state, and no further Call calls may
 // be made; the return value will be nil in that case.
-func (m *MockWorker) Wait() interface{} {
+func (m *MockWorker) Wait() (interface{}, error) {
 	args := m.MethodCalled("Wait")
 
-	return args.Get(0)
+	return args.Get(0), args.Error(1)
 }

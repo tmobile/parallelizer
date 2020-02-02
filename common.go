@@ -18,5 +18,17 @@ import "errors"
 
 // Various errors that may be returned by Worker.Call.
 var (
-	ErrWorkerClosed = errors.New("Worker has been closed by a call to Wait")
+	ErrWorkerClosed  = errors.New("Worker has been closed by a call to Wait")
+	ErrWouldDeadlock = errors.New("Called Wait from Integrate; would deadlock")
+)
+
+// workerState describes the state of the worker.
+type workerState int
+
+// Worker state values.
+const (
+	workerNew     workerState = iota // Worker is in the new state
+	workerRunning                    // Worker has been started and is running
+	workerClosed                     // Worker has been closed, but no results
+	workerResult                     // Worker has been closed, results available
 )
