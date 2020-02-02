@@ -141,6 +141,7 @@ func (w *parallelWorker) Wait() (interface{}, error) {
 		w.Unlock()
 		w.manager.submit <- &managerItem{done: true}
 		<-w.manager.done
+		w.manager = nil // clear to break cycle
 		w.gonner.Do(w.getResult)
 
 	case workerClosed: // Closed, waiting for result

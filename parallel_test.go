@@ -161,20 +161,22 @@ func TestParallelWorkerWaitNew(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "result", result)
 	assert.Equal(t, workerResult, obj.state)
+	assert.Nil(t, obj.manager)
 	assert.Equal(t, "result", obj.result)
 	runner.AssertExpectations(t)
 }
 
 func TestParallelWorkerWaitRunning(t *testing.T) {
 	runner := &MockRunner{}
+	manager := &parallelManager{
+		submit: make(chan *managerItem, 1),
+		done:   make(chan bool, 1),
+	}
 	obj := &parallelWorker{
-		state:  workerRunning,
-		runner: runner,
-		manager: &parallelManager{
-			submit: make(chan *managerItem, 1),
-			done:   make(chan bool, 1),
-		},
-		gonner: &sync.Once{},
+		state:   workerRunning,
+		runner:  runner,
+		manager: manager,
+		gonner:  &sync.Once{},
 	}
 	obj.manager.done <- true
 	runner.On("Result").Return("result").Run(func(args mock.Arguments) {
@@ -186,9 +188,10 @@ func TestParallelWorkerWaitRunning(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "result", result)
 	assert.Equal(t, workerResult, obj.state)
+	assert.Nil(t, obj.manager)
 	assert.Equal(t, "result", obj.result)
 	runner.AssertExpectations(t)
-	submission := <-obj.manager.submit
+	submission := <-manager.submit
 	assert.Equal(t, &managerItem{done: true}, submission)
 }
 
@@ -208,6 +211,7 @@ func TestParallelWorkerWaitClosed(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "result", result)
 	assert.Equal(t, workerResult, obj.state)
+	assert.Nil(t, obj.manager)
 	assert.Equal(t, "result", obj.result)
 	runner.AssertExpectations(t)
 }
@@ -225,6 +229,7 @@ func TestParallelWorkerWaitResult(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "result", result)
 	assert.Equal(t, workerResult, obj.state)
+	assert.Nil(t, obj.manager)
 	assert.Equal(t, "result", obj.result)
 	runner.AssertExpectations(t)
 }
