@@ -320,7 +320,8 @@ func TestParallelManagerReceiveResultData(t *testing.T) {
 		worker: &parallelWorker{
 			runner: runner,
 		},
-		count: 5,
+		count:   5,
+		waiting: 3,
 	}
 	runner.On("Integrate", obj, &Result{Result: "data"})
 	item := &managerItem{data: &Result{Result: "data"}}
@@ -328,6 +329,7 @@ func TestParallelManagerReceiveResultData(t *testing.T) {
 	obj.receiveResult(item)
 
 	assert.Equal(t, 5, obj.count)
+	assert.Equal(t, 2, obj.waiting)
 	runner.AssertExpectations(t)
 }
 
@@ -337,13 +339,15 @@ func TestParallelManagerReceiveResultDone(t *testing.T) {
 		worker: &parallelWorker{
 			runner: runner,
 		},
-		count: 5,
+		count:   5,
+		waiting: 3,
 	}
 	item := &managerItem{done: true}
 
 	obj.receiveResult(item)
 
 	assert.Equal(t, 4, obj.count)
+	assert.Equal(t, 3, obj.waiting)
 	runner.AssertExpectations(t)
 }
 
@@ -361,6 +365,7 @@ func TestParallelManagerManagerSelectSendWork(t *testing.T) {
 	work, ok := <-obj.work
 	require.True(t, ok)
 	assert.Equal(t, "data", work)
+	assert.Equal(t, 1, obj.waiting)
 }
 
 func TestParallelManagerManagerSelectRecvWork(t *testing.T) {
@@ -382,6 +387,7 @@ func TestParallelManagerManagerSelectRecvResults(t *testing.T) {
 	obj := &parallelManager{
 		exiting: true,
 		count:   1,
+		waiting: 1,
 		queue:   &list.List{},
 		results: make(chan *managerItem, 1),
 	}
@@ -391,6 +397,7 @@ func TestParallelManagerManagerSelectRecvResults(t *testing.T) {
 
 	assert.True(t, result)
 	assert.Equal(t, 0, obj.count)
+	assert.Equal(t, 1, obj.waiting)
 }
 
 func TestParallelManagerManagerSelectDone(t *testing.T) {
@@ -442,11 +449,12 @@ func TestParallelManagerManagerClosesWork(t *testing.T) {
 func TestParallelManagerManagerStartsWorkers(t *testing.T) {
 	work := make(chan interface{}, 1)
 	obj := &parallelManager{
-		worker: &parallelWorker{},
-		queue:  &list.List{},
-		submit: make(chan *managerItem, 1),
-		work:   work,
-		done:   make(chan bool, 1),
+		worker:  &parallelWorker{},
+		queue:   &list.List{},
+		waiting: -1, // make sure manager exits
+		submit:  make(chan *managerItem, 1),
+		work:    work,
+		done:    make(chan bool, 1),
 	}
 	obj.queue.PushBack("work")
 	obj.submit <- &managerItem{done: true}

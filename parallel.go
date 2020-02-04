@@ -167,6 +167,7 @@ type parallelManager struct {
 	exiting bool              // A flag used by the manager's main loop
 	count   int               // The number of running workers
 	queue   *list.List        // A queue of submitted work items
+	waiting int               // Number of results we're waiting on
 	submit  chan *managerItem // A channel for submitting run requests
 	work    chan interface{}  // A channel for sending work to the workers
 	results chan *managerItem // A channel for workers to return results
@@ -216,6 +217,9 @@ func (w *parallelManager) receiveResult(result *managerItem) {
 		return
 	}
 
+	// Received a result, so decrement the waiting count
+	w.waiting--
+
 	// Integrate the result
 	w.worker.runner.Integrate(w, result.data.(*Result))
 }
@@ -230,6 +234,7 @@ func (w *parallelManager) managerSelect() bool {
 	if w.queue.Len() > 0 {
 		selectors = append(selectors, selectSend(w.work, w.queue.Front().Value, func() {
 			w.queue.Remove(w.queue.Front())
+			w.waiting++
 		}))
 	}
 
@@ -266,7 +271,7 @@ func (w *parallelManager) manager() {
 	defer func() { w.done <- true }()
 
 	for w.managerSelect() {
-		if w.exiting && w.queue.Len() <= 0 && w.work != nil {
+		if w.exiting && w.queue.Len() <= 0 && w.waiting <= 0 && w.work != nil {
 			// Manager's been told to exit and we've
 			// cleared the queue; close the work channel
 			// so the workers can exit
