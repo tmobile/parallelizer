@@ -5,7 +5,8 @@ go:
 install:
 - go get -u -v golang.org/x/tools/cmd/goimports
 - go get -u -v golang.org/x/lint/golint
+- go get -u -v github.com/klmitch/overcover
 - go get -u -v github.com/mattn/goveralls
 script:
-- make CI=true
+- make test CI=true
 - $GOPATH/bin/goveralls -coverprofile=coverage.out -service=travis-ci
