@@ -2,22 +2,22 @@
 Parallelizer
 ============
 
-.. image:: https://img.shields.io/github/tag/klmitch/parallelizer.svg
-    :target: https://github.com/klmitch/parallelizer/tags
+.. image:: https://img.shields.io/github/tag/tmobile/parallelizer.svg
+    :target: https://github.com/tmobile/parallelizer/tags
 .. image:: https://img.shields.io/hexpm/l/plug.svg
-    :target: https://github.com/klmitch/parallelizer/blob/master/LICENSE
-.. image:: https://travis-ci.org/klmitch/parallelizer.svg?branch=master
-    :target: https://travis-ci.org/klmitch/parallelizer
-.. image:: https://coveralls.io/repos/github/klmitch/parallelizer/badge.svg?branch=master
-    :target: https://coveralls.io/github/klmitch/parallelizer?branch=master
-.. image:: https://godoc.org/github.com/klmitch/parallelizer?status.svg
-    :target: http://godoc.org/github.com/klmitch/parallelizer
-.. image:: https://img.shields.io/github/issues/klmitch/parallelizer.svg
-    :target: https://github.com/klmitch/parallelizer/issues
-.. image:: https://img.shields.io/github/issues-pr/klmitch/parallelizer.svg
-    :target: https://github.com/klmitch/parallelizer/pulls
-.. image:: https://goreportcard.com/badge/github.com/klmitch/parallelizer
-    :target: https://goreportcard.com/report/github.com/klmitch/parallelizer
+    :target: https://github.com/tmobile/parallelizer/blob/master/LICENSE
+.. image:: https://travis-ci.org/tmobile/parallelizer.svg?branch=master
+    :target: https://travis-ci.org/tmobile/parallelizer
+.. image:: https://coveralls.io/repos/github/tmobile/parallelizer/badge.svg?branch=master
+    :target: https://coveralls.io/github/tmobile/parallelizer?branch=master
+.. image:: https://godoc.org/github.com/tmobile/parallelizer?status.svg
+    :target: http://godoc.org/github.com/tmobile/parallelizer
+.. image:: https://img.shields.io/github/issues/tmobile/parallelizer.svg
+    :target: https://github.com/tmobile/parallelizer/issues
+.. image:: https://img.shields.io/github/issues-pr/tmobile/parallelizer.svg
+    :target: https://github.com/tmobile/parallelizer/pulls
+.. image:: https://goreportcard.com/badge/github.com/tmobile/parallelizer
+    :target: https://goreportcard.com/report/github.com/tmobile/parallelizer
 
 This repository contains Parallelizer.  Parallelizer is a library for
 enabling the addition of controlled parallelization utilizing a pool
