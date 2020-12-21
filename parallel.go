@@ -20,13 +20,6 @@ import (
 	"sync"
 )
 
-// Sizes of the submit, work, and results channels.
-const (
-	submitBuffer  = 100
-	workBuffer    = 100
-	resultsBuffer = 100
-)
-
 // managerItem is a structure for communicating to the manager.  When
 // coming from parallelWorker.Call, it contains data to work; when
 // coming from parallelWorker.Wait, it contains an instruction for the
@@ -79,9 +72,9 @@ func (w *parallelWorker) startManager() {
 	w.manager = &parallelManager{
 		worker:  w,
 		queue:   &list.List{},
-		submit:  make(chan *managerItem, submitBuffer),
-		work:    make(chan interface{}, workBuffer),
-		results: make(chan *managerItem, resultsBuffer),
+		submit:  make(chan *managerItem, w.workers),
+		work:    make(chan interface{}, w.workers),
+		results: make(chan *managerItem, w.workers),
 		done:    make(chan bool, 1),
 	}
 
