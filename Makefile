@@ -156,7 +156,7 @@ $(TOOLDIR):
 # Sets up build targets for each required tool
 define TOOL_template =
 ./$(TOOLDIR)/$$(notdir $(1)): $(TOOLDIR)
-	cd $(TOOLDIR) && GOBIN=$(abspath $(TOOLDIR)) go install $(1)
+	cd $(TOOLDIR) && go get -d $(1) && GOBIN=$(abspath $(TOOLDIR)) go install $(1)
 endef
 
 $(foreach tool,$(TOOLS),$(eval $(call TOOL_template,$(tool))))
