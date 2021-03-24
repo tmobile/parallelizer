@@ -84,8 +84,7 @@ goroutine.  This worker can be called into from almost any goroutine
 and ``Result()`` cannot invoke ``Call()`` on the worker itself, but
 ``Integrate()`` is passed a variant that is safe to ``Call()``).  To
 create an instance of a parallel worker, pass the runner and the
-desired number of worker goroutines to the ``NewParallelWorker()``
-function.
+desired number of worker goroutines to the ``NewGoWorker()`` function.
 
 The parallelizer package also provides 2 implementation of the
 ``Serializer`` interface.  The first is ``MockSerializer``, which is a

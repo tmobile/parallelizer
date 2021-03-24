@@ -21,7 +21,7 @@
 // The parallelizer package provides a Runner interface, which is for
 // client applications to implement.  Instances of the Runner
 // interface may then be passed to the constructor functions
-// NewSynchronousWorker or NewParallelWorker, which construct objects
+// NewSynchronousWorker or NewGoWorker, which construct objects
 // conforming to the Worker interface.  Data items may then be passed
 // to the Worker instances via the Worker.Call method, and the
 // processing completed and the final result obtained by calling
