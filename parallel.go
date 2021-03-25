@@ -373,8 +373,6 @@ func (w *goWorker) work(data interface{}) {
 // getResult is a helper for Wait to retrieve the result.  It's called
 // with goWorker.gonner to ensure that it only gets called once.
 func (w *goWorker) getResult() {
-	w.wg.Wait()
-
 	w.Lock()
 	defer w.Unlock()
 
@@ -412,6 +410,9 @@ func (w *goWorker) Call(data interface{}) error {
 // worker will go straight to a stopped state, and no further Call
 // calls may be made; no error will be returned in that case.
 func (w *goWorker) Wait() (interface{}, error) {
+	// Wait for all outstanding work to be completed
+	w.wg.Wait()
+
 	// Lock the mutex
 	w.Lock()
 
