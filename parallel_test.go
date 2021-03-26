@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/semaphore"
 )
 
 func TestParallelWorkerImplementsWorker(t *testing.T) {
@@ -491,4 +492,224 @@ func TestParallelManagerWait(t *testing.T) {
 
 	assert.Same(t, ErrWouldDeadlock, err)
 	assert.Nil(t, result)
+}
+
+func TestGoWorkerImplementsWorker(t *testing.T) {
+	assert.Implements(t, (*Worker)(nil), &goWorker{})
+}
+
+func TestNewGoWorkerBase(t *testing.T) {
+	runner := &MockRunner{}
+
+	result := NewGoWorker(runner, 5)
+
+	assert.Equal(t, &goWorker{
+		serial: &sync.Mutex{},
+		runner: runner,
+		gonner: &sync.Once{},
+		limit:  semaphore.NewWeighted(5),
+		wg:     &sync.WaitGroup{},
+	}, result)
+}
+
+func TestNewGoWorkerZeroWorkers(t *testing.T) {
+	runner := &MockRunner{}
+
+	result := NewGoWorker(runner, 0)
+
+	assert.Equal(t, &goWorker{
+		serial: &sync.Mutex{},
+		runner: runner,
+		gonner: &sync.Once{},
+		wg:     &sync.WaitGroup{},
+	}, result)
+}
+
+func TestGoWorkerWorkBase(t *testing.T) {
+	runner := &MockRunner{}
+	obj := &goWorker{
+		serial: &sync.Mutex{},
+		runner: runner,
+		wg:     &sync.WaitGroup{},
+	}
+	runner.On("Run", "data").Return("result")
+	runner.On("Integrate", obj, &Result{Result: "result"})
+
+	obj.wg.Add(1)
+	obj.work("data")
+
+	runner.AssertExpectations(t)
+}
+
+func TestGoWorkerWorkWithLimit(t *testing.T) {
+	runner := &MockRunner{}
+	obj := &goWorker{
+		serial: &sync.Mutex{},
+		runner: runner,
+		limit:  semaphore.NewWeighted(5),
+		wg:     &sync.WaitGroup{},
+	}
+	runner.On("Run", "data").Return("result")
+	runner.On("Integrate", obj, &Result{Result: "result"})
+
+	obj.wg.Add(1)
+	obj.work("data")
+
+	runner.AssertExpectations(t)
+}
+
+func TestGoWorkerGetResult(t *testing.T) {
+	runner := &MockRunner{}
+	runner.On("Result").Return("result")
+	obj := &goWorker{
+		runner: runner,
+		wg:     &sync.WaitGroup{},
+	}
+
+	obj.getResult()
+
+	assert.Equal(t, "result", obj.result)
+	assert.Equal(t, pResult, obj.state)
+	runner.AssertExpectations(t)
+}
+
+func TestGoWorkerCallNew(t *testing.T) {
+	runner := &MockRunner{}
+	obj := &goWorker{
+		serial: &sync.Mutex{},
+		runner: runner,
+		wg:     &sync.WaitGroup{},
+	}
+	runner.On("Run", "data").Return("result")
+	runner.On("Integrate", obj, &Result{Result: "result"})
+
+	err := obj.Call("data")
+	obj.wg.Wait()
+
+	assert.NoError(t, err)
+	assert.Equal(t, pRunning, obj.state)
+	runner.AssertExpectations(t)
+}
+
+func TestGoWorkerCallRunning(t *testing.T) {
+	runner := &MockRunner{}
+	obj := &goWorker{
+		state:  pRunning,
+		serial: &sync.Mutex{},
+		runner: runner,
+		wg:     &sync.WaitGroup{},
+	}
+	runner.On("Run", "data").Return("result")
+	runner.On("Integrate", obj, &Result{Result: "result"})
+
+	err := obj.Call("data")
+	obj.wg.Wait()
+
+	assert.NoError(t, err)
+	assert.Equal(t, pRunning, obj.state)
+	runner.AssertExpectations(t)
+}
+
+func TestGoWorkerCallClosed(t *testing.T) {
+	runner := &MockRunner{}
+	obj := &goWorker{
+		state:  pClosed,
+		serial: &sync.Mutex{},
+		runner: runner,
+		wg:     &sync.WaitGroup{},
+	}
+
+	err := obj.Call("data")
+	obj.wg.Wait()
+
+	assert.ErrorIs(t, err, ErrClosed)
+	assert.Equal(t, pClosed, obj.state)
+	runner.AssertExpectations(t)
+}
+
+func TestGoWorkerCallResult(t *testing.T) {
+	runner := &MockRunner{}
+	obj := &goWorker{
+		state:  pResult,
+		serial: &sync.Mutex{},
+		runner: runner,
+		wg:     &sync.WaitGroup{},
+	}
+
+	err := obj.Call("data")
+	obj.wg.Wait()
+
+	assert.ErrorIs(t, err, ErrClosed)
+	assert.Equal(t, pResult, obj.state)
+	runner.AssertExpectations(t)
+}
+
+func TestGoWorkerWaitNew(t *testing.T) {
+	runner := &MockRunner{}
+	obj := &goWorker{
+		runner: runner,
+		gonner: &sync.Once{},
+		wg:     &sync.WaitGroup{},
+	}
+	runner.On("Result").Return("result")
+
+	result, err := obj.Wait()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "result", result)
+	assert.Equal(t, pResult, obj.state)
+	runner.AssertExpectations(t)
+}
+
+func TestGoWorkerWaitRunning(t *testing.T) {
+	runner := &MockRunner{}
+	obj := &goWorker{
+		state:  pRunning,
+		runner: runner,
+		gonner: &sync.Once{},
+		wg:     &sync.WaitGroup{},
+	}
+	runner.On("Result").Return("result")
+
+	result, err := obj.Wait()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "result", result)
+	assert.Equal(t, pResult, obj.state)
+	runner.AssertExpectations(t)
+}
+
+func TestGoWorkerWaitClosed(t *testing.T) {
+	runner := &MockRunner{}
+	obj := &goWorker{
+		state:  pClosed,
+		runner: runner,
+		gonner: &sync.Once{},
+		wg:     &sync.WaitGroup{},
+	}
+	runner.On("Result").Return("result")
+
+	result, err := obj.Wait()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "result", result)
+	assert.Equal(t, pResult, obj.state)
+	runner.AssertExpectations(t)
+}
+
+func TestGoWorkerWaitResult(t *testing.T) {
+	runner := &MockRunner{}
+	obj := &goWorker{
+		state:  pResult,
+		runner: runner,
+		gonner: &sync.Once{},
+		wg:     &sync.WaitGroup{},
+	}
+
+	result, err := obj.Wait()
+
+	assert.NoError(t, err)
+	assert.Nil(t, result)
+	assert.Equal(t, pResult, obj.state)
+	runner.AssertExpectations(t)
 }
